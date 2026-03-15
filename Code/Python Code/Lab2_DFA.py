@@ -16,12 +16,10 @@
 #
 # CHANGE LOG
 #
-# 2026-03-15 uzair:
+# 2025-11-15 uzair:
 #     Removed fixed candidate-count assumptions and validated all surviving
 #     K10 candidate combinations against the known AES test pair.
 #
-# 2025-11-01 christophe:
-#     File created.
 
 import numpy as np
 from itertools import product

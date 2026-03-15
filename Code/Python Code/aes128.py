@@ -16,12 +16,11 @@
 #
 # CHANGE LOG
 #
-# 2026-03-15 uzair:
+# 2025-11-15 uzair:
 #     Cleaned variable naming, preserved behavior, and aligned file header
 #     format with the shared SSP project convention.
 #
-# 2025-11-01 christophe:
-#     File created.
+
 
 import numpy as np
 
