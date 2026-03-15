@@ -6,16 +6,16 @@ Fault-Injection-on-AES-128/
 ├── README.md
 ├── .gitignore
 ├── Code/
-│   ├── Matlab Code/
-│   │   ├── lab_task2_123.m
-│   │   └── matlab_code.mat
-│   └── Python Code/
+│   ├── matlab/
+│   │   └── lab_task2_123.m
+│   └── python/
 │       ├── aes128.py
 │       └── Lab2_DFA.py
 └── Raw_Data/
     ├── attack_data_10k.mat
     ├── constants.mat
-    └── dpa_attack_results.mat
+    ├── dpa_attack_results.mat
+    └── matlab_code.mat
 ```
 
 ## Overview
