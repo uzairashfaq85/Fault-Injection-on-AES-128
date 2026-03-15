@@ -1,29 +1,26 @@
-# Python cache and bytecode
-__pycache__/
-*.py[cod]
-*$py.class
 
-# Virtual environments
+Code/python/__pycache__/
+Code/python/*.py[cod]
+Code/python/*$py.class
+Code/python/.ipynb_checkpoints/
+
+# Virtual environments (workspace root)
 .venv/
 venv/
 env/
 
-# Jupyter artifacts
-.ipynb_checkpoints/
 
-# IDE/editor settings
+Code/Matlab Code/*.asv
+Code/Matlab Code/*.m~
+Code/Matlab Code/slprj/
+
+
+Raw_Data/*.mat
+
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# MATLAB temporary/generated files
-*.asv
-*.m~
-slprj/
-
-# Local analysis outputs (regenerable)
-Raw_Data/dpa_attack_results.mat
 
 # Logs
 *.log
