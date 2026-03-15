@@ -1,10 +1,40 @@
-# Cryptanalysis of AES-128 with a faulted round modification. [1]
-# TP created by Amir-Pasha Mirbaha 
-# This Python implementation by Sébastien Michelland.
-# [1]: https://ieeexplore.ieee.org/abstract/document/6224334 (§IV.B)
+#
+# Lab2_DFA.py
+#
+# Differential Fault Analysis workflow for AES-128 sample ciphertext pairs.
+# Recovers round-10 key-byte candidates, validates candidate combinations,
+# and reconstructs the AES-128 master key from the surviving K10 values.
+#
+# Usage:
+#   python Lab2_DFA.py
+#
+# Description:
+#   - Uses correct and faulty ciphertext pairs to derive K10 byte candidates.
+#   - Validates candidate combinations against a known plaintext/ciphertext pair.
+#   - Reconstructs the master key via inverse key expansion.
+#   - Retains the sample vectors used in the bundled lab exercise.
+#
+# CHANGE LOG
+#
+# 2026-03-15 uzair:
+#     Removed fixed candidate-count assumptions and validated all surviving
+#     K10 candidate combinations against the known AES test pair.
+#
+# 2025-11-01 christophe:
+#     File created.
 
 import numpy as np
-from aes128 import *
+from itertools import product
+from aes128 import (
+    ArrayToMatrix,
+    MatrixToArray,
+    MixColumns,
+    InvShiftRows,
+    InvSubBytes,
+    InvKeyExpansion,
+    Cipher,
+    InvCipher,
+)
 
 # All numpy arrays will print in hex without the 0x prefix.
 np.set_printoptions(formatter={"int": lambda x: '%02x' % x})
@@ -33,9 +63,9 @@ def Test_AES():
     print("Ciphertext")
     print(c)
 
-    i = InvCipher(key, c)
+    decoded = InvCipher(key, c)
     print("Decoded")
-    print(i)
+    print(decoded)
 
 #==============================================================================#
 
@@ -67,12 +97,8 @@ def test_equations(C1, C2, C3, D1, D2, D3):
     reverse_1 = compute_reverse(D1, D2)
     reverse_2 = compute_reverse(D1, D3)
 
-    candidates = []
-    key = []
-
-    for i in range(16):
-        candidates.append([])  # empty list
-        key.append([])
+    candidates = [[] for _ in range(16)]
+    key = [[] for _ in range(16)]
 
     for pos in range(16):
         candidates[pos] = []
@@ -103,10 +129,10 @@ def test_equations(C1, C2, C3, D1, D2, D3):
 
     for pos in range(16):
         key[pos] = []
-        for k in range (2):
+        for candidate in candidates[pos]:
             # C1: correct one
             state_1 = C1.copy()
-            state_1[pos] ^= candidates[pos][k]
+            state_1[pos] ^= candidate
             state_1 = ArrayToMatrix(state_1)
             state_1 = InvShiftRows(state_1)
             state_1 = InvSubBytes(state_1)
@@ -114,7 +140,7 @@ def test_equations(C1, C2, C3, D1, D2, D3):
 
             # C3: with fault
             state_3 = C3.copy()
-            state_3[pos] ^= candidates[pos][k]
+            state_3[pos] ^= candidate
             state_3 = ArrayToMatrix(state_3)
             state_3 = InvShiftRows(state_3)
             state_3 = InvSubBytes(state_3)
@@ -125,7 +151,7 @@ def test_equations(C1, C2, C3, D1, D2, D3):
             xor = out_1[shifted_pos] ^ out_3[shifted_pos]
 
             if xor == reverse_2[shifted_pos]:   
-                key[pos].append(candidates[pos][k])
+                key[pos].append(candidate)
 
     return key
 
@@ -134,34 +160,32 @@ def DFA():
     K10_candidates = test_equations(Ca, Cb, Cc, Da, Db, Dc)
     
     print("Candidates for each byte of K10 in hexadecimal:")
-    for i in range(16):
-        print("Byte #{}: {}".format(i, [f"{k:02x}" for k in K10_candidates[i]]))
+    for byte_idx, byte_candidates in enumerate(K10_candidates):
+        print("Byte #{}: {}".format(byte_idx, [f"{k:02x}" for k in byte_candidates]))
 
-    # catch the first candidate for each byte
-    K10_test_1 = np.array([c[0] for c in K10_candidates])
-    master_key_from_k10 = InvKeyExpansion(K10_test_1, 10)
-    master_key_from_k10 = np.array(master_key_from_k10, dtype=np.uint8)
+    if any(len(candidates_for_byte) == 0 for candidates_for_byte in K10_candidates):
+        raise ValueError("At least one key byte has no valid K10 candidates.")
 
-    c_test_1 = Cipher(master_key_from_k10, Ma)
+    recovered_master_key = None
+    recovered_ciphertext = None
 
-    if (c_test_1 == Ca).all():
-        print("\nFirst candidate is correct:")
-        print(master_key_from_k10)
+    for candidate_tuple in product(*K10_candidates):
+        k10_test = np.array(candidate_tuple, dtype=np.uint8)
+        master_key_from_k10 = np.array(InvKeyExpansion(k10_test, 10), dtype=np.uint8)
+        ciphertext_test = Cipher(master_key_from_k10, Ma)
+
+        if (ciphertext_test == Ca).all():
+            recovered_master_key = master_key_from_k10
+            recovered_ciphertext = ciphertext_test
+            break
+
+    if recovered_master_key is not None:
+        print("\nRecovered master key:")
+        print(recovered_master_key)
         print("Ciphertext with recovered key:")
-        print(c_test_1)
-
-    # for the test_2, only byte 2 has two candidates in the example
-    K10_test_2 = K10_test_1.copy()
-    K10_test_2[2] = K10_candidates[2][1]
-    master_key_from_k10 = InvKeyExpansion(K10_test_2, 10)
-    master_key_from_k10 = np.array(master_key_from_k10, dtype=np.uint8)
-    c_test_2 = Cipher(master_key_from_k10, Ma)
-
-    if (c_test_2 == Ca).all():
-        print("\nSecond candidate is correct:")
-        print(master_key_from_k10)
-        print("Ciphertext with recovered key:")
-        print(c_test_2)
+        print(recovered_ciphertext)
+    else:
+        print("\nNo valid master key found from candidate combinations.")
 
 # Test_AES()
 DFA()

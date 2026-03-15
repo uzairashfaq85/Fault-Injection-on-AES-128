@@ -1,3 +1,29 @@
+%
+% lab_task2_123.m
+%
+% Correlation Power Analysis comparison script for multiple leakage models.
+% Evaluates Hamming-weight and single-bit models across all AES bytes and
+% reports the final recovered key guess and minimum trace count estimate.
+%
+% Usage:
+%   Run lab_task2_123.m from MATLAB with the required .mat files available.
+%
+% Description:
+%   - Loads captured traces and AES lookup-table constants.
+%   - Applies several candidate power models to the first-round S-box output.
+%   - Computes correlation peaks for each key hypothesis and byte position.
+%   - Reports final-byte guesses and the earliest trace count matching the
+%     final recovered key for each attacked byte.
+%
+% CHANGE LOG
+%
+% 2026-03-15 uzair:
+%     Fixed trace-threshold reporting to compare against the final recovered
+%     key and made S-box indexing type-safe for MATLAB execution.
+%
+% 2025-11-01 christophe:
+%     File created.
+
 clc;
 clear all;
 load('attack_data_10k.mat');
@@ -11,6 +37,7 @@ traces = datapoints2(1:samples, :);
 trace_length = size(traces, 2);
 
 K = 0:255;
+subbytes_lut = double(SubBytes);
 
 % Define power models
 power_models = {
@@ -48,7 +75,7 @@ for model_idx = 1:num_models
         V = zeros(samples, length(K));
         for key_idx = 1:length(K)
             intermediate = bitxor(D, K(key_idx), 'uint8');
-            V(:, key_idx) = SubBytes(intermediate + 1);
+            V(:, key_idx) = subbytes_lut(double(intermediate) + 1).';
         end
         
         % Apply power model
@@ -70,6 +97,9 @@ for model_idx = 1:num_models
         correct_key_found_at = samples;
         trace_counts = [100, 500, 1000, 2000, 5000, samples];
         trace_counts = trace_counts(trace_counts <= samples);
+        trace_counts = unique(trace_counts, 'stable');
+        guessed_keys = zeros(1, length(trace_counts));
+        corr_peaks = zeros(1, length(trace_counts));
         
         for trace_count_idx = 1:length(trace_counts)
             current_traces = trace_counts(trace_count_idx);
@@ -86,14 +116,20 @@ for model_idx = 1:num_models
             [M, I] = max(abs(R(:)));
             [key_row, ~] = ind2sub(size(R), I);
             current_key = key_row - 1;
+            guessed_keys(trace_count_idx) = current_key;
+            corr_peaks(trace_count_idx) = M;
             
             if trace_count_idx == length(trace_counts)
-                model_key(byte_to_attack) = current_key;
-                model_correlations(byte_to_attack) = M;
                 all_R{byte_to_attack} = R;
-            elseif correct_key_found_at == samples && current_key == model_key(byte_to_attack)
-                correct_key_found_at = current_traces;
             end
+        end
+
+        final_key = guessed_keys(end);
+        model_key(byte_to_attack) = final_key;
+        model_correlations(byte_to_attack) = corr_peaks(end);
+        first_match_idx = find(guessed_keys == final_key, 1, 'first');
+        if ~isempty(first_match_idx)
+            correct_key_found_at = trace_counts(first_match_idx);
         end
         
         model_success_rate(byte_to_attack) = correct_key_found_at;

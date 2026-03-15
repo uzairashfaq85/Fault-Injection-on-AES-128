@@ -1,4 +1,27 @@
-# Naive AES128 implementation by Sébastien Michelland
+#
+# aes128.py
+#
+# Core AES-128 reference implementation used by the DFA analysis scripts.
+# Provides key expansion, forward cipher, inverse cipher, and supporting
+# Rijndael state transformations for educational and validation purposes.
+#
+# Usage:
+#   Imported by Lab2_DFA.py for AES primitive operations.
+#
+# Description:
+#   - Implements AES S-box and inverse S-box lookups.
+#   - Provides MixColumns, ShiftRows, AddRoundKey, and key schedule helpers.
+#   - Includes inverse key expansion to recover the master key from K10.
+#   - Keeps the implementation straightforward for lab analysis and debugging.
+#
+# CHANGE LOG
+#
+# 2026-03-15 uzair:
+#     Cleaned variable naming, preserved behavior, and aligned file header
+#     format with the shared SSP project convention.
+#
+# 2025-11-01 christophe:
+#     File created.
 
 import numpy as np
 
@@ -22,8 +45,8 @@ AES_SBOX = np.array([
 ], dtype="uint8")
 
 AES_INV_SBOX = np.zeros(256, dtype="uint8")
-for i in range(256):
-    AES_INV_SBOX[AES_SBOX[i]] = i
+for idx in range(256):
+    AES_INV_SBOX[AES_SBOX[idx]] = idx
 
 # Converts a 16-length array into a 4x4 column-major matrix for Rijndael.
 def ArrayToMatrix(a):
@@ -84,14 +107,14 @@ def InvMixOneColumn(r):
 
 def MixColumns(state):
     result = state[:]
-    for i in range(4):
-        result[:,i] = MixOneColumn(result[:,i])
+    for col_idx in range(4):
+        result[:,col_idx] = MixOneColumn(result[:,col_idx])
     return result
 
 def InvMixColumns(state):
     result = state[:]
-    for i in range(4):
-        result[:,i] = InvMixOneColumn(result[:,i])
+    for col_idx in range(4):
+        result[:,col_idx] = InvMixOneColumn(result[:,col_idx])
     return result
 
 # key: 16-length array
@@ -99,34 +122,34 @@ def InvMixColumns(state):
 def KeyExpansion(key):
     w = np.zeros((4, 44), dtype="uint8")
     w[:,:4] = key.reshape((4,4)).T
-    for i in range(1*4, 11*4):
-        temp = w[:,i-1]
-        if i % 4 == 0:
+    for word_index in range(1*4, 11*4):
+        temp = w[:,word_index-1]
+        if word_index % 4 == 0:
             temp = SubBytes(np.roll(temp, -1))
             rcon = 1
-            for m in range(i // 4 - 1):
+            for _ in range(word_index // 4 - 1):
                 rcon = _gmul(2, rcon)
             temp[0] ^= rcon
-        w[:,i] = w[:,i-4] ^ temp
+        w[:,word_index] = w[:,word_index-4] ^ temp
     return w
 
 # Regenerate the main key from a given round key Ki
 # Ki: 4x4 matrix
 # i: round number of Ki (0≤i≤10 ; i=0 means Ki is already the main key)
 # Returns K as a 16-length array.
-def InvKeyExpansion(Ki, i):
+def InvKeyExpansion(Ki, round_idx):
     key = ArrayToMatrix(Ki)
 
     Rcon = np.zeros((4, 10), dtype="uint8")
     Rcon[0,:] = [1,2,4,8,16,32,64,128,27,54]
 
-    for i in range(i, 1-1, -1):
+    for round_index in range(round_idx, 1-1, -1):
         prev_key = np.zeros((4, 4), dtype="uint8")
         for j in range(3, 1-1, -1):
             prev_key[:,j] = key[:,j-1] ^ key[:,j]
 
         temp = SubBytes(np.roll(prev_key[:,3],-1))
-        prev_key[:,0] = key[:,0] ^ temp ^ Rcon[:,i-1]
+        prev_key[:,0] = key[:,0] ^ temp ^ Rcon[:,round_index-1]
         key = prev_key
 
     return MatrixToArray(key)
@@ -141,9 +164,9 @@ def Cipher(key, In, debug=False):
     w = KeyExpansion(key)
     if debug:
         print("Expanded keys")
-        for i in range(11):
-            print("w{}".format(i))
-            print(w[:,4*i:4*i+4])
+        for round_index in range(11):
+            print("w{}".format(round_index))
+            print(w[:,4*round_index:4*round_index+4])
 
     state = ArrayToMatrix(In.copy())
     if debug:
@@ -153,9 +176,9 @@ def Cipher(key, In, debug=False):
     state = AddRoundKey(state, w[:,roundKeyOff:roundKeyOff+4])
     roundKeyOff += 4
 
-    for k in range(1, 9+1):
+    for round_index in range(1, 9+1):
         if debug:
-            print("Round", k)
+            print("Round", round_index)
             print("Input")
             print(state)
         state = SubBytes(state)
@@ -188,7 +211,7 @@ def InvCipher(key, In):
     state = AddRoundKey(state, w[:,roundKeyOff:roundKeyOff+4])
     roundKeyOff -= 4
 
-    for k in range(1, 9+1):
+    for _ in range(1, 9+1):
         state = InvShiftRows(state)
         state = InvSubBytes(state)
         state = AddRoundKey(state, w[:,roundKeyOff:roundKeyOff+4])

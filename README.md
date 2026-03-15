@@ -1,4 +1,24 @@
-📖 Overview
+# Fault-Injection-on-AES-128
+
+## Repository Structure
+```text
+Fault-Injection-on-AES-128/
+├── README.md
+├── .gitignore
+├── Code/
+│   ├── Matlab Code/
+│   │   ├── lab_task2_123.m
+│   │   └── matlab_code.mat
+│   └── Python Code/
+│       ├── aes128.py
+│       └── Lab2_DFA.py
+└── Raw_Data/
+    ├── attack_data_10k.mat
+    ├── constants.mat
+    └── dpa_attack_results.mat
+```
+
+## Overview
 
 This project explores active hardware attacks by injecting Electromagnetic (EM) faults into an AES-128 encryption engine running on an STM32 microcontroller. Using a precise pulse generator and EM probe, we successfully induced computational errors and applied Differential Fault Analysis (DFA) to mathematically derive the secret key from the faulty ciphertexts.
 
